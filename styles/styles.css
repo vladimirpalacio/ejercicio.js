@@ -9,3 +9,9 @@
   font-size: 16px;
 
 }
+.borde {
+  border-width: thick;
+  border-color: black;
+  font-size: 30px;
+  display: inline-block;
+}
