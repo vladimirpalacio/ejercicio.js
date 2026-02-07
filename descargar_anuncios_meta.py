@@ -43,6 +43,13 @@ def parse_args():
         help="Paises en formato ISO, separados por coma. Ej: MX,US",
     )
     parser.add_argument(
+        "--ad-status",
+        default="ALL",
+        type=str.upper,
+        choices=["ALL", "ACTIVE", "INACTIVE"],
+        help="Estado de anuncios: ALL, ACTIVE o INACTIVE.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=100,
@@ -82,6 +89,17 @@ def slugify(text):
     text = re.sub(r"[^a-z0-9]+", "_", text)
     text = text.strip("_")
     return text or "pagina"
+
+
+def parse_page_ids(raw_value):
+    items = [item.strip() for item in raw_value.split(",") if item.strip()]
+    ids = []
+    for item in items:
+        if item.isdigit():
+            ids.append(int(item))
+        else:
+            ids.append(item)
+    return ids
 
 
 def request_json(url, retries=3):
@@ -152,9 +170,9 @@ def main():
 
     params = {
         "access_token": token,
-        "search_page_ids": args.page_id,
+        "search_page_ids": json.dumps(parse_page_ids(args.page_id)),
         "ad_type": "ALL",
-        "ad_active_status": "ALL",
+        "ad_active_status": args.ad_status,
         "ad_reached_countries": json.dumps(countries),
         "fields": ",".join(DEFAULT_FIELDS),
         "limit": args.limit,
@@ -187,6 +205,7 @@ def main():
     output = {
         "metadata": {
             "page_id": args.page_id,
+            "page_ids": parse_page_ids(args.page_id),
             "page_name": args.page_name,
             "total_ads": len(ads),
             "active_ads": active,

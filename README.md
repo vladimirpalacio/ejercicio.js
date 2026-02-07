@@ -29,6 +29,7 @@ El script guardara un archivo JSON en el mismo directorio.
 - `--limit 100` Cantidad por pagina (maximo 100).
 - `--max-ads 200` Limite total (0 = sin limite).
 - `--countries MX,US` Lista de paises en formato ISO.
+- `--ad-status ACTIVE` Filtra por anuncios activos (o INACTIVE/ALL).
 - `--token` Para pasar el token directo por linea de comandos.
 - `--api-version v24.0` Version de la API de Meta.
 

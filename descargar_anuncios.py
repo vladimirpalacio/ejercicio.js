@@ -43,6 +43,13 @@ def parse_args():
         help="Paises en formato ISO, separados por coma. Ej: MX,US",
     )
     parser.add_argument(
+        "--ad-status",
+        default="ALL",
+        type=str.upper,
+        choices=["ALL", "ACTIVE", "INACTIVE"],
+        help="Estado de anuncios: ALL, ACTIVE o INACTIVE.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=100,
@@ -154,7 +161,7 @@ def main():
         "access_token": token,
         "search_page_ids": args.page_id,
         "ad_type": "ALL",
-        "ad_active_status": "ALL",
+        "ad_active_status": args.ad_status,
         "ad_reached_countries": json.dumps(countries),
         "fields": ",".join(DEFAULT_FIELDS),
         "limit": args.limit,
