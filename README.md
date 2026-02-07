@@ -50,6 +50,9 @@ python3 descargar_anuncios_meta.py --page-id 684860751673005 --page-name "Be Gra
 
 Esto crea una carpeta `media_<pagina>_<timestamp>` con imagenes y videos.
 
+Si no descarga media, algunos snapshots no exponen URLs directas; intenta con
+`--ad-status ALL` o revisa el snapshot en el navegador.
+
 ## Nota sobre errores al copiar y pegar
 
 Si pegas muchas lineas dentro del interprete interactivo de Python (`>>>`)

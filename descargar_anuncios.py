@@ -6,6 +6,7 @@ Uso basico:
 """
 
 import argparse
+import html as html_lib
 import json
 import mimetypes
 import os
@@ -208,6 +209,18 @@ def extract_media_urls(html):
             except json.JSONDecodeError:
                 value = raw.replace("\\/", "/")
             if isinstance(value, str) and value.startswith("http"):
+                urls.add(value)
+    meta_patterns = [
+        r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
+        r'<meta[^>]+property="og:image:secure_url"[^>]+content="([^"]+)"',
+        r'<meta[^>]+property="og:video"[^>]+content="([^"]+)"',
+        r'<meta[^>]+property="og:video:secure_url"[^>]+content="([^"]+)"',
+        r'<meta[^>]+property="og:video:url"[^>]+content="([^"]+)"',
+    ]
+    for pattern in meta_patterns:
+        for raw in re.findall(pattern, html):
+            value = html_lib.unescape(raw)
+            if value.startswith("http"):
                 urls.add(value)
     return sorted(urls)
 
