@@ -40,6 +40,7 @@ El script guardara un archivo JSON en el mismo directorio.
 - `--download-media` Descarga imagenes y videos del snapshot.
 - `--media-dir carpeta` Carpeta destino para media.
 - `--min-bytes 10240` Tamano minimo de media para guardar.
+- `--keep-snapshot-token` Mantiene el token en ad_snapshot_url (no recomendado).
 
 ## Interfaz grafica (GUI)
 

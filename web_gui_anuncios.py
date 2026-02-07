@@ -27,6 +27,7 @@ DEFAULTS = {
     "media_dir": "",
     "output_dir": os.getcwd(),
     "download_media": "",
+    "keep_snapshot_token": "",
     "token": "",
 }
 
@@ -60,6 +61,8 @@ def build_command(data):
         if data.get("media_dir"):
             cmd.extend(["--media-dir", data["media_dir"]])
         cmd.extend(["--min-bytes", data["min_bytes"]])
+    if data.get("keep_snapshot_token"):
+        cmd.append("--keep-snapshot-token")
     return cmd
 
 
@@ -72,6 +75,7 @@ def render_form(data, output="", error=""):
         return "selected" if value == current else ""
 
     download_checked = "checked" if data.get("download_media") else ""
+    keep_checked = "checked" if data.get("keep_snapshot_token") else ""
     error_html = f'<div class="error">{html_escape(error)}</div>' if error else ""
     output_html = f"<pre>{html_escape(output)}</pre>" if output else ""
 
@@ -155,6 +159,10 @@ def render_form(data, output="", error=""):
       <input type="checkbox" name="download_media" {download_checked} />
       Descargar media (imagenes/videos)
     </label>
+    <label>
+      <input type="checkbox" name="keep_snapshot_token" {keep_checked} />
+      Mantener token en URLs (no recomendado)
+    </label>
 
     <div class="row">
       <div>
@@ -203,6 +211,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 data[key] = form[key][0].strip()
 
         data["download_media"] = "download_media" in form
+        data["keep_snapshot_token"] = "keep_snapshot_token" in form
 
         error = ""
         for required in ("page_id", "countries"):

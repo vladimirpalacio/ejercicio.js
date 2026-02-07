@@ -78,6 +78,11 @@ def parse_args():
         help="Token de acceso. Si no se pasa, se usa META_ACCESS_TOKEN.",
     )
     parser.add_argument(
+        "--keep-snapshot-token",
+        action="store_true",
+        help="Mantener el access_token en ad_snapshot_url (no recomendado).",
+    )
+    parser.add_argument(
         "--download-media",
         action="store_true",
         help="Descarga imagenes y videos desde ad_snapshot_url.",
@@ -360,8 +365,12 @@ def main():
         return 0
 
     for ad in ads:
-        if isinstance(ad.get("ad_snapshot_url"), str):
-            ad["ad_snapshot_url"] = strip_access_token(ad["ad_snapshot_url"])
+        snapshot_url = ad.get("ad_snapshot_url")
+        if isinstance(snapshot_url, str):
+            if args.keep_snapshot_token:
+                ad["ad_snapshot_url"] = ensure_access_token(snapshot_url, token)
+            else:
+                ad["ad_snapshot_url"] = strip_access_token(snapshot_url)
 
     active = sum(1 for ad in ads if not ad.get("ad_delivery_stop_time"))
     inactive = len(ads) - active
@@ -386,6 +395,8 @@ def main():
         json.dump(output, handle, indent=2, ensure_ascii=False)
 
     print(f"Guardado en: {filename}")
+    if args.keep_snapshot_token:
+        print("Aviso: se guardaron URLs con token. No las compartas.")
 
     platforms = {}
     for ad in ads:
