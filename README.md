@@ -39,6 +39,7 @@ El script guardara un archivo JSON en el mismo directorio.
 - `--api-version v24.0` Version de la API de Meta.
 - `--download-media` Descarga imagenes y videos del snapshot.
 - `--media-dir carpeta` Carpeta destino para media.
+- `--min-bytes 10240` Tamano minimo de media para guardar.
 
 ## Descargar imagenes y videos
 

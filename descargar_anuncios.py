@@ -86,6 +86,12 @@ def parse_args():
         help="Carpeta para guardar media (default: media_<pagina>_<timestamp>).",
     )
     parser.add_argument(
+        "--min-bytes",
+        type=int,
+        default=10 * 1024,
+        help="Tamano minimo del archivo de media para guardar (bytes).",
+    )
+    parser.add_argument(
         "--api-version",
         default=DEFAULT_API_VERSION,
         help="Version de la API (ej: v24.0).",
@@ -293,7 +299,7 @@ def extract_media_urls(html):
     return sorted(urls)
 
 
-def download_media(url, output_base, referer=None):
+def download_media(url, output_base, referer=None, min_bytes=0):
     headers = {"User-Agent": "meta-ads-script/1.0"}
     if referer:
         headers["Referer"] = referer
@@ -301,13 +307,15 @@ def download_media(url, output_base, referer=None):
     with request.urlopen(req) as resp:
         content_type = (resp.headers.get("Content-Type") or "").split(";")[0]
         data = resp.read()
+    if min_bytes and len(data) < min_bytes:
+        return None, len(data)
     ext = os.path.splitext(parse.urlparse(url).path)[1]
     if not ext:
         ext = mimetypes.guess_extension(content_type) or ".bin"
     output_path = f"{output_base}{ext}"
     with open(output_path, "wb") as handle:
         handle.write(data)
-    return output_path
+    return output_path, len(data)
 
 
 def main():
@@ -400,6 +408,7 @@ def main():
         media_dir = args.media_dir or f"media_{slug}_{timestamp}"
         os.makedirs(media_dir, exist_ok=True)
         downloaded = 0
+        skipped_small = 0
         seen_media = set()
         for ad in ads:
             ad_id = ad.get("id") or "ad"
@@ -425,16 +434,32 @@ def main():
                 seen_media.add(media_url)
                 try:
                     output_base = os.path.join(media_dir, f"{ad_id}_{index}")
-                    download_media(media_url, output_base, referer=snapshot_url)
-                    downloaded += 1
+                    output_path, size = download_media(
+                        media_url,
+                        output_base,
+                        referer=snapshot_url,
+                        min_bytes=args.min_bytes,
+                    )
+                    if output_path:
+                        downloaded += 1
+                    else:
+                        skipped_small += 1
                 except error.HTTPError as exc:
                     print(f"No se pudo descargar media {ad_id}: HTTP {exc.code}")
                 except error.URLError as exc:
                     print(f"No se pudo descargar media {ad_id}: {exc}")
         if downloaded:
             print(f"\nMedia descargada: {downloaded} archivos en {media_dir}")
+            if skipped_small:
+                print(f"Omitidos por tamano: {skipped_small} (min {args.min_bytes} bytes)")
         else:
-            print("\nNo se encontraron imagenes o videos en los snapshots.")
+            if skipped_small:
+                print(
+                    "\nSolo se encontraron archivos muy pequenos "
+                    f"(min {args.min_bytes} bytes)."
+                )
+            else:
+                print("\nNo se encontraron imagenes o videos en los snapshots.")
 
     print("\nDescarga completada.")
     return 0
