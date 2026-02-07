@@ -25,9 +25,9 @@ class AdsGui(tk.Tk):
 
         self.token_var = tk.StringVar()
         self.show_token_var = tk.BooleanVar(value=False)
-        self.page_id_var = tk.StringVar()
-        self.page_name_var = tk.StringVar()
-        self.countries_var = tk.StringVar(value="MX")
+        self.page_id_var = tk.StringVar(value="636758826348325")
+        self.page_name_var = tk.StringVar(value="Hawkers Co.")
+        self.countries_var = tk.StringVar(value="ES")
         self.ad_status_var = tk.StringVar(value="ACTIVE")
         self.ad_type_var = tk.StringVar(value="ALL")
         self.limit_var = tk.StringVar(value="50")
