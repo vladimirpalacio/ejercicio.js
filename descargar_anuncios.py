@@ -99,6 +99,11 @@ def parse_args():
         help="Tamano minimo del archivo de media para guardar (bytes).",
     )
     parser.add_argument(
+        "--allow-gif",
+        action="store_true",
+        help="Permite descargar GIFs (por defecto se omiten).",
+    )
+    parser.add_argument(
         "--api-version",
         default=DEFAULT_API_VERSION,
         help="Version de la API (ej: v24.0).",
@@ -306,7 +311,7 @@ def extract_media_urls(html):
     return sorted(urls)
 
 
-def download_media(url, output_base, referer=None, min_bytes=0):
+def download_media(url, output_base, referer=None, min_bytes=0, allow_gif=False):
     headers = {"User-Agent": "meta-ads-script/1.0"}
     if referer:
         headers["Referer"] = referer
@@ -314,15 +319,19 @@ def download_media(url, output_base, referer=None, min_bytes=0):
     with request.urlopen(req) as resp:
         content_type = (resp.headers.get("Content-Type") or "").split(";")[0]
         data = resp.read()
+    ext = os.path.splitext(parse.urlparse(url).path)[1].lower()
+    if not allow_gif:
+        if content_type == "image/gif" or ext == ".gif":
+            return None, len(data), "gif"
     if min_bytes and len(data) < min_bytes:
-        return None, len(data)
+        return None, len(data), "small"
     ext = os.path.splitext(parse.urlparse(url).path)[1]
     if not ext:
         ext = mimetypes.guess_extension(content_type) or ".bin"
     output_path = f"{output_base}{ext}"
     with open(output_path, "wb") as handle:
         handle.write(data)
-    return output_path, len(data)
+    return output_path, len(data), None
 
 
 def main():
@@ -379,6 +388,87 @@ def main():
     slug = slugify(args.page_name)
     filename = f"ads_{slug}_{timestamp}.json"
 
+    media_dir = None
+    downloaded = 0
+    skipped_small = 0
+    skipped_gif = 0
+    if args.download_media:
+        media_dir = args.media_dir or f"media_{slug}_{timestamp}"
+        os.makedirs(media_dir, exist_ok=True)
+        download_cache = {}
+        for ad in ads:
+            ad_id = ad.get("id") or "ad"
+            ad["downloaded_media"] = []
+            snapshot_url = ad.get("ad_snapshot_url")
+            if not snapshot_url:
+                continue
+            snapshot_url = ensure_access_token(snapshot_url, token)
+            try:
+                html = request_text(snapshot_url)
+            except error.HTTPError as exc:
+                print(f"No se pudo leer snapshot {ad_id}: HTTP {exc.code}")
+                continue
+            except error.URLError as exc:
+                print(f"No se pudo leer snapshot {ad_id}: {exc}")
+                continue
+
+            media_urls = extract_media_urls(html)
+            if not media_urls:
+                continue
+            for index, media_url in enumerate(media_urls, 1):
+                if media_url in download_cache:
+                    cached_path, cached_size = download_cache[media_url]
+                    ad["downloaded_media"].append(
+                        {
+                            "url": media_url,
+                            "path": os.path.relpath(cached_path, os.getcwd()),
+                            "bytes": cached_size,
+                        }
+                    )
+                    continue
+                try:
+                    output_base = os.path.join(media_dir, f"{ad_id}_{index}")
+                    output_path, size, reason = download_media(
+                        media_url,
+                        output_base,
+                        referer=snapshot_url,
+                        min_bytes=args.min_bytes,
+                        allow_gif=args.allow_gif,
+                    )
+                    if output_path:
+                        download_cache[media_url] = (output_path, size)
+                        downloaded += 1
+                        ad["downloaded_media"].append(
+                            {
+                                "url": media_url,
+                                "path": os.path.relpath(output_path, os.getcwd()),
+                                "bytes": size,
+                            }
+                        )
+                    elif reason == "gif":
+                        skipped_gif += 1
+                    else:
+                        skipped_small += 1
+                except error.HTTPError as exc:
+                    print(f"No se pudo descargar media {ad_id}: HTTP {exc.code}")
+                except error.URLError as exc:
+                    print(f"No se pudo descargar media {ad_id}: {exc}")
+
+        if downloaded:
+            print(f"\nMedia descargada: {downloaded} archivos en {media_dir}")
+            if skipped_small:
+                print(f"Omitidos por tamano: {skipped_small} (min {args.min_bytes} bytes)")
+            if skipped_gif and not args.allow_gif:
+                print(f"Omitidos por GIF: {skipped_gif} (usa --allow-gif)")
+        else:
+            if skipped_small or skipped_gif:
+                print(
+                    "\nSolo se encontraron archivos muy pequenos o GIFs "
+                    f"(min {args.min_bytes} bytes)."
+                )
+            else:
+                print("\nNo se encontraron imagenes o videos en los snapshots.")
+
     output = {
         "metadata": {
             "page_id": args.page_id,
@@ -390,6 +480,11 @@ def main():
         },
         "ads": ads,
     }
+    if args.download_media:
+        output["metadata"]["media_dir"] = media_dir
+        output["metadata"]["media_downloaded"] = downloaded
+        output["metadata"]["media_skipped_small"] = skipped_small
+        output["metadata"]["media_skipped_gif"] = skipped_gif
 
     with open(filename, "w", encoding="utf-8") as handle:
         json.dump(output, handle, indent=2, ensure_ascii=False)
@@ -416,63 +511,6 @@ def main():
         if text:
             print(f"     {text[:80]}...")
         print(f"     {ad.get('ad_snapshot_url', 'N/A')}")
-
-    if args.download_media:
-        media_dir = args.media_dir or f"media_{slug}_{timestamp}"
-        os.makedirs(media_dir, exist_ok=True)
-        downloaded = 0
-        skipped_small = 0
-        seen_media = set()
-        for ad in ads:
-            ad_id = ad.get("id") or "ad"
-            snapshot_url = ad.get("ad_snapshot_url")
-            if not snapshot_url:
-                continue
-            snapshot_url = ensure_access_token(snapshot_url, token)
-            try:
-                html = request_text(snapshot_url)
-            except error.HTTPError as exc:
-                print(f"No se pudo leer snapshot {ad_id}: HTTP {exc.code}")
-                continue
-            except error.URLError as exc:
-                print(f"No se pudo leer snapshot {ad_id}: {exc}")
-                continue
-
-            media_urls = extract_media_urls(html)
-            if not media_urls:
-                continue
-            for index, media_url in enumerate(media_urls, 1):
-                if media_url in seen_media:
-                    continue
-                seen_media.add(media_url)
-                try:
-                    output_base = os.path.join(media_dir, f"{ad_id}_{index}")
-                    output_path, size = download_media(
-                        media_url,
-                        output_base,
-                        referer=snapshot_url,
-                        min_bytes=args.min_bytes,
-                    )
-                    if output_path:
-                        downloaded += 1
-                    else:
-                        skipped_small += 1
-                except error.HTTPError as exc:
-                    print(f"No se pudo descargar media {ad_id}: HTTP {exc.code}")
-                except error.URLError as exc:
-                    print(f"No se pudo descargar media {ad_id}: {exc}")
-        if downloaded:
-            print(f"\nMedia descargada: {downloaded} archivos en {media_dir}")
-            if skipped_small:
-                print(f"Omitidos por tamano: {skipped_small} (min {args.min_bytes} bytes)")
-        else:
-            if skipped_small:
-                print(
-                    "\nSolo se encontraron archivos muy pequenos "
-                    f"(min {args.min_bytes} bytes)."
-                )
-            else:
-                print("\nNo se encontraron imagenes o videos en los snapshots.")
 
     print("\nDescarga completada.")
     return 0

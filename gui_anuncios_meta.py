@@ -35,6 +35,7 @@ class AdsGui(tk.Tk):
         self.api_version_var = tk.StringVar(value="v24.0")
         self.download_media_var = tk.BooleanVar(value=False)
         self.keep_snapshot_token_var = tk.BooleanVar(value=False)
+        self.allow_gif_var = tk.BooleanVar(value=False)
         self.media_dir_var = tk.StringVar()
         self.min_bytes_var = tk.StringVar(value="10240")
         self.output_dir_var = tk.StringVar(value=os.getcwd())
@@ -120,6 +121,12 @@ class AdsGui(tk.Tk):
             text="Mantener token en URLs (no recomendado)",
             variable=self.keep_snapshot_token_var,
         ).grid(row=row, column=2, columnspan=2, sticky="w")
+        row += 1
+        ttk.Checkbutton(
+            frame,
+            text="Permitir GIF (puede traer pixeles)",
+            variable=self.allow_gif_var,
+        ).grid(row=row, column=0, columnspan=2, sticky="w")
         ttk.Label(frame, text="Min bytes").grid(row=row, column=2, sticky="w")
         ttk.Entry(frame, textvariable=self.min_bytes_var, width=10).grid(
             row=row, column=3, sticky="w"
@@ -255,6 +262,8 @@ class AdsGui(tk.Tk):
             cmd.extend(["--min-bytes", self.min_bytes_var.get().strip()])
         if self.keep_snapshot_token_var.get():
             cmd.append("--keep-snapshot-token")
+        if self.allow_gif_var.get():
+            cmd.append("--allow-gif")
 
         output_dir = self.output_dir_var.get().strip() or os.getcwd()
         if not os.path.isdir(output_dir):

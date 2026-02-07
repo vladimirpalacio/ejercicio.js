@@ -28,6 +28,7 @@ DEFAULTS = {
     "output_dir": os.getcwd(),
     "download_media": "",
     "keep_snapshot_token": "",
+    "allow_gif": "",
     "token": "",
 }
 
@@ -63,6 +64,8 @@ def build_command(data):
         cmd.extend(["--min-bytes", data["min_bytes"]])
     if data.get("keep_snapshot_token"):
         cmd.append("--keep-snapshot-token")
+    if data.get("allow_gif"):
+        cmd.append("--allow-gif")
     return cmd
 
 
@@ -76,6 +79,7 @@ def render_form(data, output="", error=""):
 
     download_checked = "checked" if data.get("download_media") else ""
     keep_checked = "checked" if data.get("keep_snapshot_token") else ""
+    allow_checked = "checked" if data.get("allow_gif") else ""
     error_html = f'<div class="error">{html_escape(error)}</div>' if error else ""
     output_html = f"<pre>{html_escape(output)}</pre>" if output else ""
 
@@ -163,6 +167,10 @@ def render_form(data, output="", error=""):
       <input type="checkbox" name="keep_snapshot_token" {keep_checked} />
       Mantener token en URLs (no recomendado)
     </label>
+    <label>
+      <input type="checkbox" name="allow_gif" {allow_checked} />
+      Permitir GIF (puede traer pixeles)
+    </label>
 
     <div class="row">
       <div>
@@ -212,6 +220,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         data["download_media"] = "download_media" in form
         data["keep_snapshot_token"] = "keep_snapshot_token" in form
+        data["allow_gif"] = "allow_gif" in form
 
         error = ""
         for required in ("page_id", "countries"):

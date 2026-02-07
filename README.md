@@ -41,6 +41,7 @@ El script guardara un archivo JSON en el mismo directorio.
 - `--media-dir carpeta` Carpeta destino para media.
 - `--min-bytes 10240` Tamano minimo de media para guardar.
 - `--keep-snapshot-token` Mantiene el token en ad_snapshot_url (no recomendado).
+- `--allow-gif` Permite descargar GIFs (por defecto se omiten).
 
 ## Interfaz grafica (GUI)
 
@@ -79,6 +80,9 @@ Si no descarga media, algunos snapshots no exponen URLs directas; intenta con
 Nota: los links impresos de `ad_snapshot_url` se guardan sin token por
 seguridad y pueden expirar rapido. El script agrega el token internamente
 cuando descarga el media.
+
+Cuando se usa `--download-media`, cada anuncio incluye `downloaded_media` con
+los archivos descargados y su tamano.
 
 ## Nota sobre errores al copiar y pegar
 
