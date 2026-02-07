@@ -41,6 +41,19 @@ El script guardara un archivo JSON en el mismo directorio.
 - `--media-dir carpeta` Carpeta destino para media.
 - `--min-bytes 10240` Tamano minimo de media para guardar.
 
+## Interfaz grafica (GUI)
+
+Si prefieres interfaz grafica, ejecuta:
+
+```
+python3 gui_anuncios_meta.py
+```
+
+La GUI permite:
+- Configurar token, page_id, paises, estado/tipo de anuncios.
+- Limitar anuncios y descargar media.
+- Elegir carpeta de salida.
+
 ## Descargar imagenes y videos
 
 Puedes descargar los archivos desde `ad_snapshot_url`:
