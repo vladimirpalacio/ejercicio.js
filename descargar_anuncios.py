@@ -182,6 +182,10 @@ def first_text(ad):
     return None
 
 
+MEDIA_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".m4v", ".mov")
+MEDIA_HOST_HINTS = ("fbcdn.net", "scontent", "fbsbx.com", "lookaside", "cdninstagram")
+
+
 def strip_access_token(url):
     if not isinstance(url, str) or "access_token=" not in url:
         return url
@@ -199,6 +203,58 @@ def ensure_access_token(url, token):
     return f"{url}{joiner}access_token={parse.quote(token)}"
 
 
+def normalize_url(value):
+    if not isinstance(value, str):
+        return value
+    value = html_lib.unescape(value)
+    value = value.replace("\\/", "/")
+    if "\\u" in value:
+        try:
+            value = value.encode("utf-8").decode("unicode_escape")
+        except UnicodeDecodeError:
+            pass
+    if value.startswith("//"):
+        value = "https:" + value
+    return value
+
+
+def is_media_url(url):
+    if not isinstance(url, str) or not url.startswith("http"):
+        return False
+    parsed = parse.urlparse(url)
+    path = parsed.path.lower()
+    if any(path.endswith(ext) for ext in MEDIA_EXTENSIONS):
+        return True
+    host = parsed.netloc.lower()
+    return any(hint in host for hint in MEDIA_HOST_HINTS)
+
+
+def extract_urls_from_obj(obj, urls):
+    if isinstance(obj, dict):
+        for value in obj.values():
+            extract_urls_from_obj(value, urls)
+    elif isinstance(obj, list):
+        for value in obj:
+            extract_urls_from_obj(value, urls)
+    elif isinstance(obj, str):
+        value = normalize_url(obj)
+        if is_media_url(value):
+            urls.add(value)
+
+
+def extract_data_store_urls(html):
+    urls = set()
+    for pattern in (r'data-store="([^"]+)"', r"data-store='([^']+)'"):
+        for raw in re.findall(pattern, html):
+            value = html_lib.unescape(raw)
+            try:
+                data = json.loads(value)
+            except json.JSONDecodeError:
+                continue
+            extract_urls_from_obj(data, urls)
+    return urls
+
+
 def extract_media_urls(html):
     urls = set()
     for key in ("image_url", "video_url", "video_hd_url", "video_sd_url", "thumbnail_url"):
@@ -207,8 +263,9 @@ def extract_media_urls(html):
             try:
                 value = json.loads(f'"{raw}"')
             except json.JSONDecodeError:
-                value = raw.replace("\\/", "/")
-            if isinstance(value, str) and value.startswith("http"):
+                value = raw
+            value = normalize_url(value)
+            if is_media_url(value):
                 urls.add(value)
     meta_patterns = [
         r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
@@ -219,14 +276,28 @@ def extract_media_urls(html):
     ]
     for pattern in meta_patterns:
         for raw in re.findall(pattern, html):
-            value = html_lib.unescape(raw)
-            if value.startswith("http"):
+            value = normalize_url(raw)
+            if is_media_url(value):
                 urls.add(value)
+    tag_patterns = [
+        r'<img[^>]+src="([^"]+)"',
+        r'<video[^>]+src="([^"]+)"',
+        r'<source[^>]+src="([^"]+)"',
+    ]
+    for pattern in tag_patterns:
+        for raw in re.findall(pattern, html):
+            value = normalize_url(raw)
+            if is_media_url(value):
+                urls.add(value)
+    urls.update(extract_data_store_urls(html))
     return sorted(urls)
 
 
-def download_media(url, output_base):
-    req = request.Request(url, headers={"User-Agent": "meta-ads-script/1.0"})
+def download_media(url, output_base, referer=None):
+    headers = {"User-Agent": "meta-ads-script/1.0"}
+    if referer:
+        headers["Referer"] = referer
+    req = request.Request(url, headers=headers)
     with request.urlopen(req) as resp:
         content_type = (resp.headers.get("Content-Type") or "").split(";")[0]
         data = resp.read()
@@ -329,6 +400,7 @@ def main():
         media_dir = args.media_dir or f"media_{slug}_{timestamp}"
         os.makedirs(media_dir, exist_ok=True)
         downloaded = 0
+        seen_media = set()
         for ad in ads:
             ad_id = ad.get("id") or "ad"
             snapshot_url = ad.get("ad_snapshot_url")
@@ -348,9 +420,12 @@ def main():
             if not media_urls:
                 continue
             for index, media_url in enumerate(media_urls, 1):
+                if media_url in seen_media:
+                    continue
+                seen_media.add(media_url)
                 try:
                     output_base = os.path.join(media_dir, f"{ad_id}_{index}")
-                    download_media(media_url, output_base)
+                    download_media(media_url, output_base, referer=snapshot_url)
                     downloaded += 1
                 except error.HTTPError as exc:
                     print(f"No se pudo descargar media {ad_id}: HTTP {exc.code}")

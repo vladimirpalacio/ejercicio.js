@@ -53,6 +53,10 @@ Esto crea una carpeta `media_<pagina>_<timestamp>` con imagenes y videos.
 Si no descarga media, algunos snapshots no exponen URLs directas; intenta con
 `--ad-status ALL` o revisa el snapshot en el navegador.
 
+Nota: los links impresos de `ad_snapshot_url` se guardan sin token por
+seguridad y pueden expirar rapido. El script agrega el token internamente
+cuando descarga el media.
+
 ## Nota sobre errores al copiar y pegar
 
 Si pegas muchas lineas dentro del interprete interactivo de Python (`>>>`)
