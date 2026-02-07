@@ -10,12 +10,12 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime
 from urllib import error, parse, request
 
 
-API_VERSION = "v19.0"
-BASE_URL = f"https://graph.facebook.com/{API_VERSION}/ads_archive"
+DEFAULT_API_VERSION = "v24.0"
 
 DEFAULT_FIELDS = [
     "id",
@@ -59,6 +59,11 @@ def parse_args():
         default="",
         help="Token de acceso. Si no se pasa, se usa META_ACCESS_TOKEN.",
     )
+    parser.add_argument(
+        "--api-version",
+        default=DEFAULT_API_VERSION,
+        help="Version de la API (ej: v24.0).",
+    )
     return parser.parse_args()
 
 
@@ -79,21 +84,32 @@ def slugify(text):
     return text or "pagina"
 
 
-def request_json(url):
-    req = request.Request(url, headers={"User-Agent": "meta-ads-script/1.0"})
-    with request.urlopen(req) as resp:
-        payload = resp.read().decode("utf-8")
-    return json.loads(payload)
+def request_json(url, retries=3):
+    attempt = 0
+    while True:
+        try:
+            req = request.Request(url, headers={"User-Agent": "meta-ads-script/1.0"})
+            with request.urlopen(req) as resp:
+                payload = resp.read().decode("utf-8")
+            return json.loads(payload)
+        except error.HTTPError as exc:
+            if exc.code in (500, 502, 503, 504) and attempt < retries:
+                delay = 2**attempt
+                print(f"Error {exc.code} del API. Reintentando en {delay}s...")
+                time.sleep(delay)
+                attempt += 1
+                continue
+            raise
 
 
-def build_start_url(params):
+def build_start_url(params, api_version):
     query = parse.urlencode(params)
-    return f"{BASE_URL}?{query}"
+    return f"https://graph.facebook.com/{api_version}/ads_archive?{query}"
 
 
-def fetch_ads(params, max_ads):
+def fetch_ads(params, max_ads, api_version):
     ads = []
-    url = build_start_url(params)
+    url = build_start_url(params, api_version)
     while url:
         data = request_json(url)
         if "error" in data:
@@ -138,13 +154,14 @@ def main():
         "access_token": token,
         "search_page_ids": args.page_id,
         "ad_type": "ALL",
+        "ad_active_status": "ALL",
         "ad_reached_countries": json.dumps(countries),
         "fields": ",".join(DEFAULT_FIELDS),
         "limit": args.limit,
     }
 
     try:
-        ads = fetch_ads(params, args.max_ads)
+        ads = fetch_ads(params, args.max_ads, args.api_version)
     except error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         print(f"HTTP error {exc.code}: {body}")

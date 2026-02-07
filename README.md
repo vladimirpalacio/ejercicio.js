@@ -30,6 +30,7 @@ El script guardara un archivo JSON en el mismo directorio.
 - `--max-ads 200` Limite total (0 = sin limite).
 - `--countries MX,US` Lista de paises en formato ISO.
 - `--token` Para pasar el token directo por linea de comandos.
+- `--api-version v24.0` Version de la API de Meta.
 
 ## Nota sobre errores al copiar y pegar
 
