@@ -50,6 +50,13 @@ def parse_args():
         help="Estado de anuncios: ALL, ACTIVE o INACTIVE.",
     )
     parser.add_argument(
+        "--ad-type",
+        default="ALL",
+        type=str.upper,
+        choices=["ALL", "POLITICAL_AND_ISSUE_ADS"],
+        help="Tipo de anuncios: ALL o POLITICAL_AND_ISSUE_ADS.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=100,
@@ -171,7 +178,7 @@ def main():
     params = {
         "access_token": token,
         "search_page_ids": json.dumps(parse_page_ids(args.page_id)),
-        "ad_type": "ALL",
+        "ad_type": args.ad_type,
         "ad_active_status": args.ad_status,
         "ad_reached_countries": json.dumps(countries),
         "fields": ",".join(DEFAULT_FIELDS),
