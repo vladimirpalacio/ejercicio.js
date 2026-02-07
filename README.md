@@ -54,6 +54,14 @@ La GUI permite:
 - Limitar anuncios y descargar media.
 - Elegir carpeta de salida.
 
+Si tu macOS no soporta Tkinter, usa la interfaz web:
+
+```
+python3 web_gui_anuncios.py --port 8000
+```
+
+Luego abre http://localhost:8000 en tu navegador.
+
 ## Descargar imagenes y videos
 
 Puedes descargar los archivos desde `ad_snapshot_url`:
