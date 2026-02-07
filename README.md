@@ -16,10 +16,10 @@ Meta Ad Library API usando un token de acceso.
 export META_ACCESS_TOKEN="TU_TOKEN_AQUI"
 ```
 
-2) Ejecuta el script:
+2) Ejecuta el script (puedes usar cualquiera de los dos nombres):
 
 ```
-python descargar_anuncios_meta.py --page-id 100054211200913 --page-name "Be Grand" --countries MX
+python3 descargar_anuncios.py --page-id 100054211200913 --page-name "Be Grand" --countries MX
 ```
 
 El script guardara un archivo JSON en el mismo directorio.
