@@ -2,7 +2,7 @@
 """
 Script simple para descargar anuncios desde Meta Ad Library API.
 Uso basico:
-  python3 descargar_anuncios.py --page-id 100054211200913 --page-name "Be Grand"
+  python3 descargar_anuncios.py --page-id 636758826348325 --page-name "Hawkers Co."
 """
 
 import argparse
@@ -38,10 +38,12 @@ def parse_args():
         description="Descarga anuncios de Meta Ad Library API."
     )
     parser.add_argument("--page-id", required=True, help="ID de la pagina en Meta.")
-    parser.add_argument("--page-name", default="pagina", help="Nombre de la pagina.")
+    parser.add_argument(
+        "--page-name", default="Hawkers Co.", help="Nombre de la pagina."
+    )
     parser.add_argument(
         "--countries",
-        default="MX",
+        default="ES",
         help="Paises en formato ISO, separados por coma. Ej: MX,US",
     )
     parser.add_argument(
