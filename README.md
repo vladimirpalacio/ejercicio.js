@@ -37,9 +37,21 @@ El script guardara un archivo JSON en el mismo directorio.
 - `--ad-type POLITICAL_AND_ISSUE_ADS` Para anuncios de temas sociales/politicos.
 - `--token` Para pasar el token directo por linea de comandos.
 - `--api-version v24.0` Version de la API de Meta.
+- `--download-media` Descarga imagenes y videos del snapshot.
+- `--media-dir carpeta` Carpeta destino para media.
+
+## Descargar imagenes y videos
+
+Puedes descargar los archivos desde `ad_snapshot_url`:
+
+```
+python3 descargar_anuncios_meta.py --page-id 684860751673005 --page-name "Be Grand" --countries MX --ad-status ACTIVE --download-media
+```
+
+Esto crea una carpeta `media_<pagina>_<timestamp>` con imagenes y videos.
 
 ## Nota sobre errores al copiar y pegar
 
 Si pegas muchas lineas dentro del interprete interactivo de Python (`>>>`)
 puedes obtener errores como `SyntaxError: EOL while scanning string literal`.
-Para evitarlo, ejecuta el archivo con `python descargar_anuncios_meta.py`.
+Para evitarlo, ejecuta el archivo con `python3 descargar_anuncios_meta.py`.

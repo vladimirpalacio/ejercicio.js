@@ -7,6 +7,7 @@ Uso basico:
 
 import argparse
 import json
+import mimetypes
 import os
 import re
 import sys
@@ -74,6 +75,16 @@ def parse_args():
         help="Token de acceso. Si no se pasa, se usa META_ACCESS_TOKEN.",
     )
     parser.add_argument(
+        "--download-media",
+        action="store_true",
+        help="Descarga imagenes y videos desde ad_snapshot_url.",
+    )
+    parser.add_argument(
+        "--media-dir",
+        default="",
+        help="Carpeta para guardar media (default: media_<pagina>_<timestamp>).",
+    )
+    parser.add_argument(
         "--api-version",
         default=DEFAULT_API_VERSION,
         help="Version de la API (ej: v24.0).",
@@ -121,6 +132,24 @@ def request_json(url, retries=3):
             raise
 
 
+def request_text(url, retries=3):
+    attempt = 0
+    while True:
+        try:
+            req = request.Request(url, headers={"User-Agent": "meta-ads-script/1.0"})
+            with request.urlopen(req) as resp:
+                payload = resp.read().decode("utf-8", errors="replace")
+            return payload
+        except error.HTTPError as exc:
+            if exc.code in (500, 502, 503, 504) and attempt < retries:
+                delay = 2**attempt
+                print(f"Error {exc.code} del API. Reintentando en {delay}s...")
+                time.sleep(delay)
+                attempt += 1
+                continue
+            raise
+
+
 def build_start_url(params, api_version):
     query = parse.urlencode(params)
     return f"https://graph.facebook.com/{api_version}/ads_archive?{query}"
@@ -155,6 +184,51 @@ def first_text(ad):
             if isinstance(values[0], str):
                 return values[0]
     return None
+
+
+def strip_access_token(url):
+    if not isinstance(url, str) or "access_token=" not in url:
+        return url
+    parts = parse.urlsplit(url)
+    query = parse.parse_qsl(parts.query, keep_blank_values=True)
+    filtered = [(key, value) for key, value in query if key != "access_token"]
+    new_query = parse.urlencode(filtered)
+    return parse.urlunsplit((parts.scheme, parts.netloc, parts.path, new_query, parts.fragment))
+
+
+def ensure_access_token(url, token):
+    if not token or "access_token=" in url:
+        return url
+    joiner = "&" if "?" in url else "?"
+    return f"{url}{joiner}access_token={parse.quote(token)}"
+
+
+def extract_media_urls(html):
+    urls = set()
+    for key in ("image_url", "video_url", "video_hd_url", "video_sd_url", "thumbnail_url"):
+        pattern = rf'"{key}":"(.*?)"'
+        for raw in re.findall(pattern, html):
+            try:
+                value = json.loads(f'"{raw}"')
+            except json.JSONDecodeError:
+                value = raw.replace("\\/", "/")
+            if isinstance(value, str) and value.startswith("http"):
+                urls.add(value)
+    return sorted(urls)
+
+
+def download_media(url, output_base):
+    req = request.Request(url, headers={"User-Agent": "meta-ads-script/1.0"})
+    with request.urlopen(req) as resp:
+        content_type = (resp.headers.get("Content-Type") or "").split(";")[0]
+        data = resp.read()
+    ext = os.path.splitext(parse.urlparse(url).path)[1]
+    if not ext:
+        ext = mimetypes.guess_extension(content_type) or ".bin"
+    output_path = f"{output_base}{ext}"
+    with open(output_path, "wb") as handle:
+        handle.write(data)
+    return output_path
 
 
 def main():
@@ -195,6 +269,10 @@ def main():
     if not ads:
         print("No se encontraron anuncios para esta pagina.")
         return 0
+
+    for ad in ads:
+        if isinstance(ad.get("ad_snapshot_url"), str):
+            ad["ad_snapshot_url"] = strip_access_token(ad["ad_snapshot_url"])
 
     active = sum(1 for ad in ads if not ad.get("ad_delivery_stop_time"))
     inactive = len(ads) - active
@@ -239,6 +317,42 @@ def main():
         if text:
             print(f"     {text[:80]}...")
         print(f"     {ad.get('ad_snapshot_url', 'N/A')}")
+
+    if args.download_media:
+        media_dir = args.media_dir or f"media_{slug}_{timestamp}"
+        os.makedirs(media_dir, exist_ok=True)
+        downloaded = 0
+        for ad in ads:
+            ad_id = ad.get("id") or "ad"
+            snapshot_url = ad.get("ad_snapshot_url")
+            if not snapshot_url:
+                continue
+            snapshot_url = ensure_access_token(snapshot_url, token)
+            try:
+                html = request_text(snapshot_url)
+            except error.HTTPError as exc:
+                print(f"No se pudo leer snapshot {ad_id}: HTTP {exc.code}")
+                continue
+            except error.URLError as exc:
+                print(f"No se pudo leer snapshot {ad_id}: {exc}")
+                continue
+
+            media_urls = extract_media_urls(html)
+            if not media_urls:
+                continue
+            for index, media_url in enumerate(media_urls, 1):
+                try:
+                    output_base = os.path.join(media_dir, f"{ad_id}_{index}")
+                    download_media(media_url, output_base)
+                    downloaded += 1
+                except error.HTTPError as exc:
+                    print(f"No se pudo descargar media {ad_id}: HTTP {exc.code}")
+                except error.URLError as exc:
+                    print(f"No se pudo descargar media {ad_id}: {exc}")
+        if downloaded:
+            print(f"\nMedia descargada: {downloaded} archivos en {media_dir}")
+        else:
+            print("\nNo se encontraron imagenes o videos en los snapshots.")
 
     print("\nDescarga completada.")
     return 0
