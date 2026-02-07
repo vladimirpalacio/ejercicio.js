@@ -100,13 +100,7 @@ def slugify(text):
 
 def parse_page_ids(raw_value):
     items = [item.strip() for item in raw_value.split(",") if item.strip()]
-    ids = []
-    for item in items:
-        if item.isdigit():
-            ids.append(int(item))
-        else:
-            ids.append(item)
-    return ids
+    return items
 
 
 def request_json(url, retries=3):

@@ -22,6 +22,10 @@ export META_ACCESS_TOKEN="TU_TOKEN_AQUI"
 python3 descargar_anuncios.py --page-id 100054211200913 --page-name "Be Grand" --countries MX
 ```
 
+Si en Ads Library ves anuncios pero el script no devuelve nada, verifica:
+- Que el `page_id` sea el de Ads Library (view_all_page_id).
+- Que los paises en `--countries` coincidan con "Paises donde se mostro".
+
 El script guardara un archivo JSON en el mismo directorio.
 
 ## Opciones utiles
